@@ -94,26 +94,33 @@ def Mag(N):
     return M/N
 
 #PARAMETERS INITIALIZATION
-N=5
-lam=0.1
-
-ham=HIsing(N,lam) #Numpy Hamiltonian
-Qham=QHIsing(N,lam) #Qiskit Hamiltonian
-
-vals,vecs=alg.eigh(ham) #ED with Numpy
+lams=np.logspace(-2,2,10) #array of magnetic fields
+mags=np.zeros(len(lams)); Qmags=np.zeros(len(lams)) #arrays of magnetizations
 
 backend= StatevectorSimulator()
 optimizer = SLSQP(maxiter=1000)
 ansatz = EfficientSU2(N, reps=3)
-vqe = VQE(ansatz, optimizer, quantum_instance=backend)
-result = vqe.compute_minimum_eigenvalue(Qham) #ED with Qiskit VQE
+vqe = VQE(ansatz, optimizer, quantum_instance=backend) 
 
-mags=np.zeros(len(lams)); Qmags=np.zeros(len(lams))
-mags[j]=vecs[:,0].T.conj()@Mag(N)@vecs[:,0]
-Qmags[j]=result.eigenstate.T.conj()@Mag(N)@result.eigenstate
-# print the result (it contains lot's of information)
-print(result) 
+for j in range(len(lams)):
+    N=5 #number of sites
+    lam=lams[j] #magnetic field
+    
+    ham=HIsing(N,lam) #Numpy Hamiltonian
+    Qham=QHIsing(N,lam) #Qiskit Hamiltonian
+    
+    vals,vecs=alg.eigh(ham) #ED with Numpy
+    result = vqe.compute_minimum_eigenvalue(Qham) #ED with Qiskit VQE
+    
+    mags[j]=vecs[:,0].T.conj()@Mag(N)@vecs[:,0] #Magnetization with Numpy results
+    Qmags[j]=result.eigenstate.T.conj()@Mag(N)@result.eigenstate #Magnetization with Qiskit results
+    
 plt.figure(1,dpi=220)
-plt.plot(np.abs(result.eigenstate)**2)
+plt.scatter(lams,mags)
+plt.scatter(lams,Qmags)
+plt.legend(["Numpy","Qiskit"])
+plt.xscale("log")
+plt.xlabel("Magnetic field")
+plt.ylabe("Magnetization")
 
 
