@@ -12,7 +12,7 @@ from modules.utils import *
 L = 6
 
 filename = f'params_VQE_ising_N{L}.npy'   # name of the data file that is used
-name = "000_L-{L}_data-set-{filename}"    # name of the data produced by this notebook
+name = f"000_L-{L}_data-set-{filename}"    # name of the data produced by this notebook
 
 ##############################################################################
 ### I - data  ################################################################
