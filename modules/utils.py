@@ -46,7 +46,7 @@ def ising_groundstate(L, J, gx, gz):
         H_zz = H_zz + J*sz_list[i] * sz_list[(i + 1) % L]
     for i in range(L):
         H_x = H_x + gx*sx_list[i] +gz*sz_list[i]
-    H = - H_zz - H_x
+    H = - H_zz - H_x - 1e-4*sz_list[0]
     E, V = arp.eigsh(H, k=1, which='SA', return_eigenvectors=True, ncv=20)
     return V[:,0], E[0], H
 
