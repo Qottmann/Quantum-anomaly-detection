@@ -58,7 +58,7 @@ def sort_params(vals):
 
 def init_vqe(vals, reps=3, L=6):
     # obviously this wont work anymore once we change the ansatz
-    return qiskit.circuit.library.EfficientSU2(L, reps=reps).assign_parameters(sort_vals(vals))
+    return qiskit.circuit.library.EfficientSU2(L, reps=reps).assign_parameters(vals)
 
 def QHIsing(L,J,gx,gz):
     '''
