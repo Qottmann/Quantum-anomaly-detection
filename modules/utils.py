@@ -46,7 +46,7 @@ def ising_groundstate(L, J, gx, gz):
         H_zz = H_zz + J*sz_list[i] * sz_list[(i + 1) % L]
     for i in range(L):
         H_x = H_x + gx*sx_list[i] +gz*sz_list[i]
-    H = - H_zz - H_x - 1e-4*sz_list[0]
+    H = - H_zz - H_x - 1e-4*sz_list[0] #the last term breaks spin inversion symmetry in the ordered phase of AF Ising
     E, V = arp.eigsh(H, k=1, which='SA', return_eigenvectors=True, ncv=20)
     return V[:,0], E[0], H
 
@@ -70,7 +70,7 @@ def QHIsing(L,J,gx,gz):
     gz: longitudinal field
     '''
 
-    H=-J*QNKron(L,Z,Z,0)-gx*QNKron(L,X,I,0)-gz*QNKron(L,Z,I,0)
+    H=-J*QNKron(L,Z,Z,0)-gx*QNKron(L,X,I,0)-(gz+1e-4)*QNKron(L,Z,I,0) #the last term breaks spin inversion symmetry in the ordered phase of AF Ising
     for i in range(1,L-1):
         H=H-J*QNKron(L,Z,Z,i)-gx*QNKron(L,X,I,i)-gz*QNKron(L,Z,I,i)
     H=H-gx*QNKron(L,X,I,L-1)-gz*QNKron(L,Z,I,L-1)
