@@ -11,8 +11,6 @@ from scipy import sparse
 import scipy.sparse.linalg.eigen.arpack as arp
 from modules.utils import *
 
-%matplotlib inline
-
 for anti in [1., -1.]:
 
     L = 6
@@ -46,4 +44,4 @@ for anti in [1., -1.]:
             gz_list.append(gz)
             opt_params.append(sort_params(result.optimal_parameters))
 
-    np.savez(f'data/params_VQE_Ising_L%.0f_anti_%.0f.npz' %(L,anti), gx_list=gx_list, gz_list=gz_list, opt_params=opt_params)
+    np.savez(f'params_VQE_Ising_L%.0f_anti_%.0f.npz' %(L,anti), gx_list=gx_list, gz_list=gz_list, opt_params=opt_params)
