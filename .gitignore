@@ -1,3 +1,5 @@
 .ipynb_checkpoints/
 modules/__pycache__/
 data_rike/
+plots_rike/
+.DS_Store
