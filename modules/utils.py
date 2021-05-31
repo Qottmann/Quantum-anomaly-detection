@@ -69,11 +69,16 @@ def QHIsing(L,J,gx,gz):
     gx: transverse field
     gz: longitudinal field
     '''
-
-    H=-J*QNKron(L,Z,Z,0)-gx*QNKron(L,X,I,0)-(gz+1e-3)*QNKron(L,Z,I,0) #the last term breaks spin inversion symmetry in the ordered phase of AF Ising
-    for i in range(1,L-1):
-        H=H-J*QNKron(L,Z,Z,i)-gx*QNKron(L,X,I,i)-gz*QNKron(L,Z,I,i)
-    H=H-gx*QNKron(L,X,I,L-1)-gz*QNKron(L,Z,I,L-1)
+    if np.isclose(gz,0):
+        H=-J*QNKron(L,Z,Z,0)-gx*QNKron(L,X,I,0)-1e-3*QNKron(L,Z,I,0) #the last term breaks spin inversion symmetry in the ordered phase of AF Ising
+        for i in range(1,L-1):
+            H=H-J*QNKron(L,Z,Z,i)-gx*QNKron(L,X,I,i)
+        H=H-gx*QNKron(L,X,I,L-1)
+    else:
+        H=-J*QNKron(L,Z,Z,0)-gx*QNKron(L,X,I,0)-(gz+1e-3)*QNKron(L,Z,I,0) #the last term breaks spin inversion symmetry in the ordered phase of AF Ising
+        for i in range(1,L-1):
+            H=H-J*QNKron(L,Z,Z,i)-gx*QNKron(L,X,I,i)-gz*QNKron(L,Z,I,i)
+        H=H-gx*QNKron(L,X,I,L-1)-gz*QNKron(L,Z,I,L-1)
     return H
 
 def QNKron(L,op1,op2,pos): 
