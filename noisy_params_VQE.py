@@ -30,17 +30,22 @@ coupling_map = device.configuration().coupling_map
 noise_model = qiskit.providers.aer.noise.NoiseModel.from_backend(device)
 basis_gates = noise_model.basis_gates
 #aqua_globals.random_seed = seed
+
+backend = AerSimulator # just for quick tests
+
 qi = qiskit.utils.QuantumInstance(backend=backend, # , seed_simulator=seed, seed_transpiler=seed
                          coupling_map=coupling_map, noise_model=noise_model,
                          measurement_error_mitigation_cls= CompleteMeasFitter, 
                          cals_matrix_refresh_period=30  #How often to refresh the calibration matrix in measurement mitigation. in minutes
                                  )
 
+
+
 L = 5
 num_trash = 2
 anti = -1
 logspace_size = 20
-maxiter = 500
+maxiter = 100
 filename = f'data/noisy_VQE_maxiter-{maxiter}_Ising_L{L:.0f}_anti_{anti:.0f}_{logspace_size}.npz'
 print(filename)
 gx_vals = np.logspace(-2,2,logspace_size)
@@ -71,7 +76,7 @@ def store_intermediate_result(eval_count, parameters, mean, std):
     counts.append(eval_count)
     values.append(mean)
 
-vqe = VQE(ansatz=ansatz, optimizer=optimizer, callback=store_intermediate_result, quantum_instance=qi)
+
 
 opt_params = []
 gx_list = []
@@ -83,6 +88,11 @@ for j,gx in enumerate(gx_vals):
     t0 = datetime.datetime.now()
     counts = []
     values = []
+    
+    if j != 0:
+        vqe = VQE(ansatz=ansatz, initial_point = opt_params[-1], optimizer=optimizer, callback=store_intermediate_result, quantum_instance=qi)
+    else:
+        vqe = VQE(ansatz=ansatz, optimizer=optimizer, callback=store_intermediate_result, quantum_instance=qi)
 
     H = QHIsing(L,anti,np.float32(gx),np.float32(gz))
     result = vqe.compute_minimum_eigenvalue(H, aux_operators = [QMag(L,anti)]) #ED with Qiskit VQE
@@ -104,6 +114,6 @@ for j,gx in enumerate(gx_vals):
     gx_list.append(gx)
     gz_list.append(gz)
     opt_params.append(sort_params(result.optimal_parameters))
-    print(f"{j+1} / {len(opt_params)}, gx = {gx:.2f}, gz = {gz:.2f}, time : {(datetime.datetime.now() - t0)}")
+    print(f"{j+1} / {len(gx_vals)}, gx = {gx:.2f}, gz = {gz:.2f}, time : {(datetime.datetime.now() - t0)}")
 
-np.savez(filename, gx_list=gx_list, gz_list=gz_list, opt_params=opt_params, Qmag=Qmag, Qen=Qen, Sen=Sen, Smag=Smag, ansatz_config=ansatz_config)
+    np.savez(filename, gx_list=gx_list, gz_list=gz_list, opt_params=opt_params, Qmag=Qmag, Qen=Qen, Sen=Sen, Smag=Smag, ansatz_config=ansatz_config)
