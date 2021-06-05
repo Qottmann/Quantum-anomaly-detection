@@ -18,6 +18,7 @@ class QAEAnsatz(TwoLocal):
         self,
         num_qubits: int,
         num_trash_qubits: int,
+        nums_trash:Union[np.ndarray, List]=[1,2],
         measure_trash: bool = False,
         rotation_blocks: Gate = RYGate,
         entanglement_blocks: Gate = CZGate,
@@ -30,6 +31,7 @@ class QAEAnsatz(TwoLocal):
         Args:
             num_qubits: The number of qubits of the QAE circuit.
             num_trash_qubits: The number of trash qubits that should be measured in the end.
+            nums_trash: The explicit indices of the trash qubits
             measure_trash: If True, the trash qubits will be measured at the end. If False, no
                 measurement takes place.
             rotation_blocks: The blocks used in the rotation layers. If multiple are passed,
@@ -46,8 +48,9 @@ class QAEAnsatz(TwoLocal):
         assert num_trash_qubits < num_qubits
 
         self.num_trash_qubits = num_trash_qubits
+        self.nums_trash = nums_trash
         self.measure_trash = measure_trash
-        entanglement = [QAEAnsatz._generate_entangler_map(num_qubits, num_trash_qubits, i) for i in range(num_trash_qubits)]
+        entanglement = [QAEAnsatz._generate_entangler_map(num_qubits, num_trash_qubits, i, nums_trash) for i in range(num_trash_qubits)]
 
         super().__init__(num_qubits=num_qubits,
                          rotation_blocks=rotation_blocks,
@@ -61,7 +64,7 @@ class QAEAnsatz(TwoLocal):
         self.add_register(ClassicalRegister(self.num_trash_qubits))
 
     @staticmethod
-    def _generate_entangler_map(num_qubits:int, num_trash_qubits:int, i_permut:int=1) -> List[Tuple[int, int]]:
+    def _generate_entangler_map(num_qubits:int, num_trash_qubits:int, i_permut:int=1, nums_trash:Union[np.ndarray, List]=[1,2]) -> List[Tuple[int, int]]:
         """Generates entanglement map for QAE circuit
 
         Entangling gates are only added between trash and non-trash-qubits.
@@ -70,14 +73,18 @@ class QAEAnsatz(TwoLocal):
             num_qubits: The number of qubits of the QAE circuit.
             num_trash_qubits: The number of trash qubits that should be measured in the end.
             i_permut: Permutation index; increases for every layer of the circuit
+            nums_trash: which qubits should be the trash qubits
 
         Returns:
             entanglement map: List of pairs of qubit indices that should be entangled
         """
         result = []
-        nums = list(range(num_qubits))
-        nums_compressed = nums.copy()[:num_qubits-num_trash_qubits]
-        nums_trash = nums.copy()[-num_trash_qubits:]
+        nums_compressed = list(range(num_qubits))
+        for trashqubit in nums_trash:
+            nums_compressed.remove(trashqubit)
+        if nums_trash == None: #old way  
+            nums_compressed = list(range(num_qubits))[:L-num_trash]
+            nums_trash = list(range(num_qubits))[-num_trash:]
 
         # combine all trash qubits with themselves
         for trash_q in nums_trash[:-1]:
@@ -135,7 +142,7 @@ class QAEAnsatz(TwoLocal):
             # create a new layer
             layer = QuantumCircuit(*self.qregs)
 
-            block_indices = [[self.num_qubits-i-1] for i in range(self.num_trash_qubits)]
+            block_indices = [[i] for i in self.nums_trash]
 
             # apply the operations in the layer
             for indices in block_indices:
@@ -150,8 +157,8 @@ class QAEAnsatz(TwoLocal):
 
         # measure trash qubits if set
         if self.measure_trash:
-            for i in range(self.num_trash_qubits):
-                self.measure(self.qregs[0][self.num_qubits-i-1], self.cregs[0][i])
+            for i,j in enumerate(self.nums_trash):
+                self.measure(self.qregs[0][j], self.cregs[0][i])
 
     @property
     def num_parameters_settable(self) -> int:
