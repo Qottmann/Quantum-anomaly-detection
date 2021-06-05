@@ -5,6 +5,8 @@ Entry for the [Qiskit Europe Hackathon](https://qiskithackathoneurope.bemyapp.co
 We propose quantum anomaly detection (QAD), a novel quantum machine learning framework for exploring phase diagrams of quantum many-body systems. QAD is trained in a fully unsupervised fashion on a quantum device. The implentation is based on [Qiskit](https://qiskit.org/).
 
 * [qae.py](qae.py): Includes `QAEAnsatz`, the parameterized circuit ansatz for the QAD, and `QAE`, the training framework
-* [ibmq_antiferro-1D_bogota_results.ipynb](ibmq_antiferro-1D_bogota_results.ipynb): The results of the actual quantum computation
-* [clean_VQE_Ising.ipynb](clean_VQE_Ising.ipynb): The VQE simulations for the Ising model
-* [qae-from-vqe.ipynb](qae-from-vqe.ipynb): The QAE results for the BH model
+* [experiments/](experiments/): The experiments performed on the physical device. Each file has a short description of the experiment in the beginning
+* [main.ipynb](main.ipynb): A complete run through our proposal showcasing all its ingredients. In its form here it is generating the result for the 2D Antiferromagnetig Ising model in real-noise simulations
+* [simulations/qae-from-vqe.ipynb](simulations/qae-from-vqe.ipynb): The QAE results for the BH model
+* [data/](data/): Our notebooks are configured in the way that all results are stored in numpy files for reuse
+* [plotting/](plotting/): Notebooks to replot the results in the desired fashion for the presentation and paper
