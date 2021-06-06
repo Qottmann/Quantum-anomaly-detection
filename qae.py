@@ -4,21 +4,21 @@ from typing import Union, Optional, List, Tuple, Callable, Any
 import numpy as np
 
 from qiskit import *
-
-from qiskit.circuit.library import TwoLocal
-from qiskit.algorithms.optimizers import *
-from qiskit.circuit.gate import Gate
-from qiskit.circuit.library.standard_gates import RYGate, CZGate
 from qiskit.circuit.quantumcircuit import QuantumCircuit
+from qiskit.circuit.library import TwoLocal
+from qiskit.circuit.library.standard_gates import RYGate, CZGate
+from qiskit.circuit.gate import Gate
+from qiskit.algorithms.optimizers import Optimizer, SPSA
 from qiskit.utils import algorithm_globals
 from qiskit.providers import BaseBackend, Backend
+
 
 class QAEAnsatz(TwoLocal):
     def __init__(
         self,
         num_qubits: int,
         num_trash_qubits: int,
-        nums_trash:Union[np.ndarray, List]=[1,2],
+        trash_qubits_idxs: Union[np.ndarray, List] = [1, 2],  # TODO
         measure_trash: bool = False,
         rotation_blocks: Gate = RYGate,
         entanglement_blocks: Gate = CZGate,
@@ -31,7 +31,8 @@ class QAEAnsatz(TwoLocal):
         Args:
             num_qubits: The number of qubits of the QAE circuit.
             num_trash_qubits: The number of trash qubits that should be measured in the end.
-            nums_trash: The explicit indices of the trash qubits
+            trash_qubits_idxs: The explicit indices of the trash qubits, i.e., where the trash
+                qubits should be placed.
             measure_trash: If True, the trash qubits will be measured at the end. If False, no
                 measurement takes place.
             rotation_blocks: The blocks used in the rotation layers. If multiple are passed,
@@ -43,14 +44,15 @@ class QAEAnsatz(TwoLocal):
                 no barriers are inserted.
             initial_state: A `QuantumCircuit` object which can be used to describe an initial state
                 prepended to the NLocal circuit.
-
         """
+
         assert num_trash_qubits < num_qubits
 
         self.num_trash_qubits = num_trash_qubits
-        self.nums_trash = nums_trash
+        self.trash_qubits_idxs = trash_qubits_idxs
         self.measure_trash = measure_trash
-        entanglement = [QAEAnsatz._generate_entangler_map(num_qubits, num_trash_qubits, i, nums_trash) for i in range(num_trash_qubits)]
+        entanglement = [QAEAnsatz._generate_entangler_map(
+            num_qubits, num_trash_qubits, i, trash_qubits_idxs) for i in range(num_trash_qubits)]
 
         super().__init__(num_qubits=num_qubits,
                          rotation_blocks=rotation_blocks,
@@ -64,7 +66,7 @@ class QAEAnsatz(TwoLocal):
         self.add_register(ClassicalRegister(self.num_trash_qubits))
 
     @staticmethod
-    def _generate_entangler_map(num_qubits:int, num_trash_qubits:int, i_permut:int=1, nums_trash:Union[np.ndarray, List]=[1,2]) -> List[Tuple[int, int]]:
+    def _generate_entangler_map(num_qubits: int, num_trash_qubits: int, i_permut: int = 1, trash_qubits_idxs: Union[np.ndarray, List] = [1, 2]) -> List[Tuple[int, int]]:
         """Generates entanglement map for QAE circuit
 
         Entangling gates are only added between trash and non-trash-qubits.
@@ -73,24 +75,26 @@ class QAEAnsatz(TwoLocal):
             num_qubits: The number of qubits of the QAE circuit.
             num_trash_qubits: The number of trash qubits that should be measured in the end.
             i_permut: Permutation index; increases for every layer of the circuit
-            nums_trash: which qubits should be the trash qubits
+            trash_qubits_idxs: The explicit indices of the trash qubits, i.e., where the trash
+                qubits should be placed.
 
         Returns:
             entanglement map: List of pairs of qubit indices that should be entangled
         """
         result = []
         nums_compressed = list(range(num_qubits))
-        for trashqubit in nums_trash:
+        for trashqubit in trash_qubits_idxs:
             nums_compressed.remove(trashqubit)
-        if nums_trash == None: #old way  
-            nums_compressed = list(range(num_qubits))[:L-num_trash]
-            nums_trash = list(range(num_qubits))[-num_trash:]
+        if trash_qubits_idxs == None:
+            nums_compressed = list(range(num_qubits))[:num_qubits-num_trash_qubits]
+            trash_qubits_idxs = list(range(num_qubits))[-num_trash_qubits:]
 
         # combine all trash qubits with themselves
-        for trash_q in nums_trash[:-1]:
-            result.append((trash_q+1,trash_q))
+        for trash_q in trash_qubits_idxs[:-1]:
+            result.append((trash_q+1, trash_q))
         # combine each of the trash qubits with every n-th
-        repeated = list(nums_trash) * (num_qubits-num_trash_qubits) # repeat the list of trash indices cyclicly
+        # repeat the list of trash indices cyclicly
+        repeated = list(trash_qubits_idxs) * (num_qubits-num_trash_qubits)
         for i in range(num_qubits-num_trash_qubits):
             result.append((repeated[i_permut + i], nums_compressed[i]))
         return result
@@ -142,7 +146,7 @@ class QAEAnsatz(TwoLocal):
             # create a new layer
             layer = QuantumCircuit(*self.qregs)
 
-            block_indices = [[i] for i in self.nums_trash]
+            block_indices = [[i] for i in self.trash_qubits_idxs]
 
             # apply the operations in the layer
             for indices in block_indices:
@@ -157,7 +161,7 @@ class QAEAnsatz(TwoLocal):
 
         # measure trash qubits if set
         if self.measure_trash:
-            for i,j in enumerate(self.nums_trash):
+            for i, j in enumerate(self.trash_qubits_idxs):
                 self.measure(self.qregs[0][j], self.cregs[0][i])
 
     @property
@@ -170,6 +174,21 @@ class QAEAnsatz(TwoLocal):
         return super().num_parameters_settable + self.num_trash_qubits
 
 
+def hamming_distance(out) -> int:
+    """Computes the Hamming distance of a measurement outcome to the
+    all zero state. For example: A single measurement outcome 101 would
+    have a Hamming distance of 2.
+
+    Args:
+        out: The measurement outcomes; a dictionary containing all possible measurement strings
+            as keys and their occurences as values.
+
+    Returns:
+        Hamming distance
+    """
+    return sum(key.count('1') * value for key, value in out.items())
+
+
 class QAE:
     def __init__(
         self,
@@ -177,6 +196,7 @@ class QAE:
         num_trash_qubits: int,
         ansatz: Optional[QuantumCircuit] = None,
         initial_params: Optional[Union[np.ndarray, List]] = None,
+        optimizer: Optional[Optimizer] = None,
         shots: int = 1000,
         num_epochs: int = 100,
         save_training_curve: Optional[bool] = False,
@@ -189,7 +209,8 @@ class QAE:
             num_qubits: The number of qubits of the QAE circuit.
             num_trash_qubits: The number of trash qubits that should be measured in the end.
             ansatz: A parameterized quantum circuit ansatz to be optimized.
-            initial_params: The initial list of parameters for the circuit ansatz.
+            initial_params: The initial list of parameters for the circuit ansatz
+            optimizer: The optimizer used for training (default is SPSA)
             shots: The number of measurement shots when training and evaluating the QAE.
             num_epochs: The number of training iterations/epochs.
             save_training_curve: If True, the cost after each optimizer step is computed and stored.
@@ -199,12 +220,23 @@ class QAE:
         algorithm_globals.random_seed = seed
         np.random.seed(seed)
 
+        self.costs = []
+        if save_training_curve:
+            callback = self._store_intermediate_result
+        else:
+            callback = None
+
+        if optimizer:
+            self.optimizer = optimizer
+        else:
+            self.optimizer = SPSA(num_epochs, callback=callback)
+
         self.backend = backend
 
         if ansatz:
             self.ansatz = ansatz
         else:
-            self.ansatz = QAEAnsatz(num_qubits, num_trash_qubits, measure_trash=False)
+            self.ansatz = QAEAnsatz(num_qubits, num_trash_qubits, measure_trash=True)
 
         if initial_params:
             self.initial_params = initial_params
@@ -212,11 +244,9 @@ class QAE:
             self.initial_params = np.random.uniform(0, 2*np.pi, self.ansatz.num_parameters_settable)
 
         self.shots = shots
-        self.num_epochs = num_epochs
         self.save_training_curve = save_training_curve
 
-
-    def run(self, input_state: Optional[Any] = None, params: Optional[Union[np.ndarray, List]]=None):
+    def run(self, input_state: Optional[Any] = None, params: Optional[Union[np.ndarray, List]] = None):
         """Execute ansatz circuit and measure trash qubits
 
         Args:
@@ -228,19 +258,25 @@ class QAE:
         """
         if params is None:
             params = self.initial_params
+
         if input_state is not None:
-            self.ansatz.initialize(input_state, self.ansatz.qregs[0])
+            if type(input_state) == QuantumCircuit:
+                circ = input_state
+            elif type(input_state) == list or type(input_state) == np.ndarray:
+                circ = QuantumCircuit(self.ansatz.num_qubits, self.ansatz.num_trash_qubits)
+                circ.initialize(input_state)
+            else:
+                raise TypeError("input_state has to be an array or a QuantumCircuit.")
+            circ = circ.compose(self.ansatz)
+        else:
+            circ = self.ansatz
 
-        circ = self.ansatz.assign_parameters(params)
-
-        for i in range(circ.num_trash_qubits):
-                circ.measure(circ.qregs[0][circ.num_qubits-i-1], circ.cregs[0][i])
+        circ = circ.assign_parameters(params)
 
         job_sim = execute(circ, self.backend, shots=self.shots)
         return job_sim.result().get_counts(circ)
 
-
-    def cost(self, input_state: Optional[Any] = None, params: Optional[Union[np.ndarray, List]]=None) -> float:
+    def cost(self, input_state: Optional[Any] = None, params: Optional[Union[np.ndarray, List]] = None) -> float:
         """ Cost function
 
         Average Hamming distance of measurement outcomes to zero state.
@@ -256,8 +292,12 @@ class QAE:
         cost = hamming_distance(out)
         return cost/self.shots
 
+    def _store_intermediate_result(self, eval_count, parameters, mean, std, ac):
+        """Callback function to save intermediate costs during training."""
+        self.costs.append(mean)
+
     def train(self, input_state: Optional[Any] = None):
-        """ Trains the QAE using SPSA
+        """ Trains the QAE using optimizer (default SPSA)
 
         Args:
             input_state: If provided, circuit is initialized accordingly
@@ -266,28 +306,29 @@ class QAE:
             Result of optimization: optimized parameters, cost, iterations
             Training curve: Cost function evaluated after each iteration
         """
-        costs = []
-        def store_intermediate_result(eval_count, parameters, mean, std, ac):
-            costs.append(mean)
 
-        if self.save_training_curve:
-            callback = store_intermediate_result
-        else:
-            callback = None
-            costs = None
-
-
-        optimizer = SPSA(maxiter=self.num_epochs,
-                         blocking=False,
-                         callback=callback,
-                         learning_rate=None,
-                         perturbation=None
-                         )
-
-        result = optimizer.optimize(
-                                num_vars=len(self.initial_params),
-                                objective_function = lambda params: self.cost(input_state, params),
-                                initial_point=self.initial_params
-                                )
+        result = self.optimizer.optimize(
+            num_vars=len(self.initial_params),
+            objective_function=lambda params: self.cost(input_state, params),
+            initial_point=self.initial_params
+        )
         self.initial_params = result[0]
-        return result, costs
+
+        return result, self.costs
+
+    def reset(self):
+        """Resets parameters to random values"""
+        self.costs = []
+        self.initial_params = np.random.uniform(0, 2*np.pi, self.ansatz.num_parameters_settable)
+
+
+if __name__ == '__main__':
+    num_qubits = 5
+    num_trash_qubits = 2
+    qae = QAE(num_qubits, num_trash_qubits, save_training_curve=True)
+
+    # for demonstration purposes QAE is trained on a random state
+    input_state = np.random.uniform(size=2**num_qubits)
+    input_state /= np.linalg.norm(input_state)
+
+    result, cost = qae.train(input_state)
