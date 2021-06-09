@@ -90,8 +90,8 @@ class QAEAnsatz(TwoLocal):
             trash_qubits_idxs = list(range(num_qubits))[-num_trash_qubits:]
 
         # combine all trash qubits with themselves
-        for trash_q in trash_qubits_idxs[:-1]:
-            result.append((trash_q+1, trash_q))
+        for i,trash_q in enumerate(trash_qubits_idxs[:-1]):
+            result.append((trash_qubits_idxs[i+1], trash_qubits_idxs[i]))
         # combine each of the trash qubits with every n-th
         # repeat the list of trash indices cyclicly
         repeated = list(trash_qubits_idxs) * (num_qubits-num_trash_qubits)
