@@ -1,8 +1,9 @@
 # Quantum Anomaly Detection: Unsupervised mapping of phase diagrams on a physical quantum computer
 
+Code, simulations and real-device experiments for our preprint [Variational Quantum Anomaly Detection: Unsupervised mapping of phase diagrams on a physical quantum computer](https://arxiv.org/abs/2106.07912)  
 Entry for the [Qiskit Europe Hackathon](https://qiskithackathoneurope.bemyapp.com/#/projects/60805383ff00f400197f84fd)
 
-We propose quantum anomaly detection (QAD), a novel quantum machine learning framework for exploring phase diagrams of quantum many-body systems. QAD is trained in a fully unsupervised fashion on a quantum device. The implentation is based on [Qiskit](https://qiskit.org/). We walk you through our proposal in [main.ipynb](main.ipynb).
+We propose variational quantum anomaly detection (VQAD), a novel quantum machine learning framework for exploring phase diagrams of quantum many-body systems. VQAD is trained in a fully unsupervised fashion on a quantum device. The implentation is done with [Qiskit](https://qiskit.org/). We walk you through our proposal in [main.ipynb](main.ipynb).
 
 * [qae.py](qae.py): Includes `QAEAnsatz`, the parameterized circuit ansatz for the QAD, and `QAE`, the training framework
 * [experiments/](experiments/): The experiments performed on the physical device. Each file has a short description of the experiment in the beginning. The notebook that produced the results shown in the paper is [jakarta_antiferro_execute.ipynb](jakarta_antiferro_execute.ipynb).
